@@ -1,0 +1,25 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet26"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+Dim mIsChanged As Boolean
+
+Private Sub Worksheet_Change(ByVal target As Range)
+    HoldSheetInfo target, DC_PLAYBACK_TOOL
+    mIsChanged = True
+End Sub
+
+Public Property Let IsChanged(ByVal status As Boolean)
+    mIsChanged = status
+End Property
+
+Public Property Get IsChanged() As Boolean
+    IsChanged = mIsChanged
+End Property

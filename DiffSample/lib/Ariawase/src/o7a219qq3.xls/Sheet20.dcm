@@ -1,0 +1,32 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet20"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+Private Sub Worksheet_Change(ByVal target As Range)
+'内容:
+'   Image Kernel Definitionシートが変更された場合のイベント。TheIDPを破棄します。
+'作成者:
+'  tomoyoshi.takase
+'作成日: 2010年11月30日
+'パラメータ:
+'   [target]    In  1):未使用
+'戻り値:
+'
+'注意事項:
+
+
+    If Not TheIDP Is Nothing Then
+        If TheIDP.KernelManager.Count <> 0 Then
+            DestroyTheIDP
+        End If
+    End If
+
+End Sub
+

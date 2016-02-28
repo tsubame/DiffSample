@@ -1,0 +1,42 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "TestConditionV3"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+'概要:
+'   測定条件設定定義用ワークシート
+'
+'目的:
+'   測定条件設定機能が使用するデータを定義する
+'
+
+Option Explicit
+
+'FormatterObject
+Private m_FormatterObj As CTestConditionManager
+
+'セルの値変更イベントによる書式設定
+Private Sub Worksheet_Change(ByVal pChangedTarget As Range)
+    Call CreateFormatter
+    Call m_FormatterObj.AddCondShtFormat(pChangedTarget)
+End Sub
+'セルの選択イベントによる入力規則追加
+Private Sub Worksheet_SelectionChange(ByVal pSelectedTarget As Range)
+    Call CreateFormatter
+    Call m_FormatterObj.AddCondShtValidation(pSelectedTarget)
+End Sub
+'オブジェクト生成とプロパティ設定
+Private Sub CreateFormatter()
+    If m_FormatterObj Is Nothing Then
+        Set m_FormatterObj = New CTestConditionManager
+        With m_FormatterObj
+            Call .Initialize
+            .TestConditionSheet = Me.Name
+        End With
+    End If
+End Sub
+

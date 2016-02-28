@@ -1,0 +1,123 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet35"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+Dim mIsChanged As Boolean
+Dim mChangedCell As Range
+
+Private Sub Worksheet_BeforeRightClick(ByVal target As Range, Cancel As Boolean)
+    Dim ctrlSheet As CDataSheetManager
+    Set ctrlSheet = CreateCDataSheetManager
+    ctrlSheet.Initialize SHEET_MANAGER_TOOL
+    On Error Resume Next
+    If ctrlSheet.GetActiveDataSht(DC_SCENARIO_TOOL) Is Nothing Then GoTo menuCancel
+    If Not ctrlSheet.GetActiveDataSht(DC_SCENARIO_TOOL).Name = Me.Name Then GoTo menuCancel
+    If target.Rows.Count > 1 Or target.Columns.Count > 1 Then GoTo menuCancel
+    If Not Me.Range(MEASURE_LABEL).Column = target.Column Or target.Value = "" Then GoTo menuCancel
+    Cancel = False
+    On Error Resume Next
+    If CommandBars("Cell").Controls.Item("Spec Infomation") Is Nothing Then
+        Dim myButton As CommandBarButton
+        With CommandBars("Cell").Controls.Add(Before:=1, temporary:=True)
+            .Caption = "Spec Infomation"
+            .OnAction = "showSpecInfo"
+            .BeginGroup = True
+        End With
+        Set myButton = CommandBars("Cell").Controls.Item("Spec Infomation")
+        With myButton
+            .FaceId = 25
+            .Style = msoButtonIconAndCaption
+        End With
+    End If
+    Exit Sub
+menuCancel:
+    On Error Resume Next
+    CommandBars("Cell").Controls.Item("Spec Infomation").Delete
+End Sub
+
+Public Property Let IsChanged(ByVal status As Boolean)
+    mIsChanged = status
+End Property
+
+Public Property Get IsChanged() As Boolean
+    IsChanged = mIsChanged
+End Property
+
+Public Property Let ChangedCell(ByVal sheetCell As Range)
+    Set mChangedCell = sheetCell
+End Property
+
+Public Property Get ChangedCell() As Range
+    Set ChangedCell = mChangedCell
+End Property
+
+Private Sub Worksheet_Change(ByVal target As Range)
+    '### データツール名とバージョン情報の保持 #############
+    HoldSheetInfo target, DC_SCENARIO_TOOL
+    '### アクティブデータシートの取得 #####################
+    Dim DataSheet As Worksheet
+    Set DataSheet = GetUsableDataSht(SHEET_MANAGER_TOOL, DC_SCENARIO_TOOL)
+    '### アクティブでない場合はExit #######################
+    If DataSheet Is Nothing Then Exit Sub
+    If Not DataSheet.Name = Me.Name Then Exit Sub
+    On Error GoTo SHT_ERROR
+    '### 有効なデータ領域の判定 ###########################
+    Dim testCategory As Range
+    Dim debugSeq As Range
+    With Me
+        Set testCategory = .Range(TEST_CATEGORY)
+        Set debugSeq = .Range(EXAMIN_MODE)
+    End With
+    If target.Row > testCategory.Row And target.Column <= debugSeq.Column Then
+        If target.Column = 1 And target.Columns.Count = 1 Then Exit Sub
+        '### データ変更ステイタスの保持 ###################
+        mIsChanged = True
+        '### データ変更セルオブジェクトの保持 #############
+        Set mChangedCell = target
+        '### パラメータチェック実行 #######################
+        Application.ScreenUpdating = False
+        ValidateActionParameter target
+        Application.ScreenUpdating = True
+    End If
+    Exit Sub
+SHT_ERROR:
+End Sub
+
+Private Sub Worksheet_SelectionChange(ByVal target As Range)
+    '### アクティブデータシートの取得 #####################
+    Dim DataSheet As Worksheet
+    Set DataSheet = GetUsableDataSht(SHEET_MANAGER_TOOL, DC_SCENARIO_TOOL)
+    '### アクティブでない場合はExit #######################
+    If DataSheet Is Nothing Then Exit Sub
+    If Not DataSheet.Name = Me.Name Then Exit Sub
+    On Error GoTo SHT_ERROR
+    '### 有効なデータ領域の判定 ###########################
+    Dim testCategory As Range
+    Dim debugSeq As Range
+    With Me
+        Set testCategory = .Range(TEST_CATEGORY)
+        Set debugSeq = .Range(EXAMIN_MODE)
+    End With
+    If target.Row > testCategory.Row And target.Column <= debugSeq.Column Then
+        If target.Rows.Count <> 1 Or target.Columns.Count <> 1 Then Exit Sub
+        '### パラメータリスト表示の実行 ###################
+        CreateActionParameterList target
+    End If
+    Exit Sub
+SHT_ERROR:
+End Sub
+
+Private Sub Worksheet_Activate()
+'    On Error GoTo SHT_ERROR
+'    '### シート背景表示の実行 #############################
+'    SetSheetBackground Me
+'    Exit Sub
+'SHT_ERROR:
+End Sub

@@ -1,0 +1,32 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet15"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+Private mFormatter As CDeviceProfiler
+
+Private Sub Worksheet_Change(ByVal pChangedTarget As Range)
+    Call CreateFormatter
+    Call mFormatter.ChangeCellForm(Me.Name)
+    Call XLibTheDeviceProfilerUtility.DestroyTheDeviceProfiler
+    Set mFormatter = Nothing
+End Sub
+
+Private Sub Worksheet_SelectionChange(ByVal pSelectedTarget As Range)
+    Call CreateFormatter
+    Call mFormatter.SelectionCellForm(pSelectedTarget)
+    Call XLibTheDeviceProfilerUtility.DestroyTheDeviceProfiler
+    Set mFormatter = Nothing
+End Sub
+
+Private Sub CreateFormatter()
+    If mFormatter Is Nothing Then
+        Set mFormatter = New CDeviceProfiler
+    End If
+End Sub

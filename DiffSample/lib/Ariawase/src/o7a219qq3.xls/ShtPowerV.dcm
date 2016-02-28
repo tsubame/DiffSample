@@ -1,0 +1,702 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "ShtPowerV"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+
+Private Const COND_INDEX_CELL = "B4"
+Private Const SECTION_INDEX_CELL = "C4"
+Private Const TESTER_INDEX_CELL = "D4"
+Private Const SITE_INDEX_CELL = "E4"
+Private Const INDEX_CELLS = "B4:E4"
+Private Const TERM_INDEX_CELL = "F4"
+
+Private Const COND_CELL_TOP = "B5"
+
+Private Const INIT_COND_CELL = "B5:B6"
+Private Const INIT_VOLTAGE_CELL = "C5:E5"
+Private Const INIT_CURRENT_CELL = "C6:E6"
+
+Private Const VOLTAGE_SECTION_NAME = "Force Voltage[V]"
+Private Const CURRENT_SECTION_NAME = "Clamp Current[A]"
+Private Const OFFSET_SECTION_NAME = "Offset[V]"
+
+Private Const LIMIT_COL = 250
+Private Const LIMIT_ROW = 60000
+
+Private m_PowerSets As Collection
+
+Private Function isLimitCol() As Boolean
+    '限度設定
+    'Pass
+    If Me.Range(COND_INDEX_CELL).End(xlToRight).Column > LIMIT_COL Then
+        'Pass
+        isLimitCol = True
+    Else
+        'Pass
+        isLimitCol = False
+    End If
+    
+End Function
+
+Private Function isLimitRow() As Boolean
+    '限度設定
+    'Pass
+    If IsEmpty(Me.Range(COND_CELL_TOP)) Then
+        'Pass
+        isLimitRow = False
+    ElseIf Me.Range(COND_INDEX_CELL).End(xlDown).Row > LIMIT_ROW Then
+        'Pass
+        isLimitRow = True
+    Else
+        'Pass
+        isLimitRow = False
+    End If
+    
+End Function
+
+Private Sub AddCondition(ByVal pCondName As String)
+
+    'Pass
+    If pCondName = "" Then Exit Sub
+    
+    '限度設定
+    'Pass
+    If isLimitRow Then
+        'Pass
+        Call MsgBox("Limit of Row(" & LIMIT_ROW & ")", vbExclamation)
+        Exit Sub
+    End If
+    
+    'Pass
+    With Me
+        If IsEmpty(.Range(COND_CELL_TOP)) Then
+            '初期状態作成
+            'Pass
+            Call AddInitCond(pCondName)
+        Else
+            '条件作成
+            'Pass
+            Call AddNextCond(pCondName)
+        End If
+    End With
+        
+End Sub
+
+Private Sub AddInitCond(ByVal newCondName As String)
+
+    'Pass
+    With Me
+        .Range(INIT_COND_CELL).Value = newCondName
+        
+        With .Range(INIT_VOLTAGE_CELL)
+            Call .Merge
+            .Value = VOLTAGE_SECTION_NAME
+            .HorizontalAlignment = xlCenter
+        End With
+        
+        With .Range(INIT_CURRENT_CELL)
+            Call .Merge
+            .Value = CURRENT_SECTION_NAME
+            .HorizontalAlignment = xlCenter
+        End With
+    End With
+    
+End Sub
+
+Private Sub AddNextCond(ByVal newCondName As String)
+
+    Dim topCell As Range
+    Dim curCell As Range
+    Dim endCell As Range
+    
+    'Pass
+    With Me
+        Set topCell = .Range(COND_CELL_TOP)
+        Set curCell = topCell
+    
+        '追加する条件名と同じ名前が出てきたら終了
+        While topCell.Value <> newCondName
+            '条件行の終わりを検索
+            'Pass
+            While topCell.Value = curCell.Value
+                'Pass
+                Set curCell = curCell.offset(1)
+            Wend
+            
+            '空白セルの時、新条件を追加
+            If IsEmpty(curCell) Then
+                '直前の条件をコピー
+                'Pass
+                Set endCell = curCell.offset(-1)
+                Call .Range(.Rows(topCell.Row), .Rows(endCell.Row)).Copy(.Rows(curCell.Row))
+                
+                '条件名を新条件に変更
+                Set endCell = endCell.offset(curCell.Row - topCell.Row)
+                Set topCell = topCell.offset(curCell.Row - topCell.Row)
+                .Range(topCell, endCell).Value = newCondName
+                
+                '終了
+                Exit Sub
+            End If
+            
+            'Pass
+            Set topCell = curCell
+        Wend
+    End With
+    
+End Sub
+
+Private Sub AddTester(ByVal pTesterName As String, ByVal pSiteNum As Long)
+    
+    With Me
+        'Pass
+        If pTesterName = "" Then Exit Sub
+        If Not (.Columns(.Range(TESTER_INDEX_CELL).Column).Find(pTesterName, , , xlWhole, , , True) Is Nothing) Then
+            'Pass
+            Call MsgBox("Tester """ & pTesterName & """ already exists")
+            Exit Sub
+        End If
+        
+        'Pass
+        If pSiteNum <= 0 Then Exit Sub
+        
+        '限度設定
+        'Pass
+        If isLimitRow Then
+            'Pass
+            Call MsgBox("Limit of Row(" & LIMIT_ROW & ")", vbExclamation)
+            Exit Sub
+        End If
+        
+        Dim topCell As Range
+        
+        'Pass
+        Set topCell = .Range(COND_CELL_TOP)
+        While Not IsEmpty(topCell)
+            
+            Dim curCell As Range
+            Dim condName As String
+            
+            '条件名の最後の行を検索
+            'Pass
+            condName = topCell.Value
+            Set curCell = topCell
+            While curCell.Value = condName
+                'Pass
+                Set curCell = curCell.offset(1)
+            Wend
+            
+            
+            'サイト数分行を追加
+            .Range(.Rows(curCell.Row), .Rows(curCell.Row + pSiteNum - 1)).Insert
+            
+            '見出し作成
+            Dim site As Long
+            Dim tmpRow As Long
+            Dim tmpCol As Long
+            
+            .Range(curCell.offset(-pSiteNum), curCell.offset(-1)).Value = condName
+            
+            tmpRow = curCell.Row
+            tmpCol = .Range(SECTION_INDEX_CELL).Column
+            .Range(.Cells(tmpRow - pSiteNum, tmpCol), .Cells(tmpRow - 1, tmpCol)).Value = OFFSET_SECTION_NAME
+            
+            tmpRow = curCell.Row
+            tmpCol = .Range(TESTER_INDEX_CELL).Column
+            .Range(.Cells(tmpRow - pSiteNum, tmpCol), .Cells(tmpRow - 1, tmpCol)).Value = pTesterName
+            
+            For site = 0 To pSiteNum - 1
+                'Pass
+                curCell.offset(-pSiteNum + site, 3).Value = site
+            Next site
+            
+            Set topCell = curCell
+        Wend
+        
+    End With
+    
+End Sub
+
+Private Sub AddTerm(ByVal pTermName As String)
+
+    With Me
+        'Pass
+        If pTermName = "" Then Exit Sub
+        If Not (.Rows(.Range(TESTER_INDEX_CELL).Row).Find(pTermName, , , xlWhole, , , True) Is Nothing) Then
+            'Pass
+            Call MsgBox("""" & pTermName & """ already exist")
+            Exit Sub
+        End If
+        
+        '限度設定
+        'Pass
+        If isLimitCol Then
+            'Pass
+            Call MsgBox("Limit of Column(" & LIMIT_COL & ")", vbExclamation)
+            Exit Sub
+        End If
+
+        '最終列検索
+        Dim srcCell As Range
+        'Pass
+        If IsEmpty(.Range(TERM_INDEX_CELL)) Then
+            'Pass
+            .Range(TERM_INDEX_CELL).Value = pTermName
+        Else
+            'Pass
+            Set srcCell = .Range(TERM_INDEX_CELL).offset(0, -1).End(xlToRight)
+            Call .Columns(srcCell.Column).Copy(.Columns(srcCell.Column + 1))
+            '見出し作成
+            srcCell.offset(0, 1).Value = pTermName
+        End If
+        
+    End With
+    
+End Sub
+
+Private Sub DeleteCondition(ByVal pCondName As String)
+    
+    Dim delRows As Range
+    Dim curCell As Range
+    'Pass
+    If pCondName = "" Then Exit Sub
+    
+    With Me
+        '削除対象検索、結合
+        'Pass
+        Set curCell = .Range(COND_CELL_TOP)
+        While Not IsEmpty(curCell)
+            'Pass
+            If curCell.Value = pCondName Then
+                'Pass
+                If delRows Is Nothing Then
+                    'Pass
+                    Set delRows = .Rows(curCell.Row)
+                Else
+                    'Pass
+                    Set delRows = Union(delRows, .Rows(curCell.Row))
+                End If
+            End If
+            Set curCell = curCell.offset(1)
+        Wend
+        
+        '削除
+        If Not delRows Is Nothing Then
+            'Pass
+            delRows.Delete
+        End If
+    End With
+
+End Sub
+
+Private Sub DeleteTester(ByVal pTesterName As String)
+    
+    Dim delRows As Range
+    Dim curCell As Range
+    'Pass
+    If pTesterName = "" Then Exit Sub
+    
+    With Me
+        '削除対象検索、結合
+            'Pass
+        Set curCell = .Range(TESTER_INDEX_CELL).offset(1)
+        While Not IsEmpty(.Cells(curCell.Row, .Range(SECTION_INDEX_CELL).Column))
+            'Pass
+            If curCell.Value = pTesterName Then
+                'Pass
+                If delRows Is Nothing Then
+                    'Pass
+                    Set delRows = .Rows(curCell.Row)
+                Else
+                    'Pass
+                    Set delRows = Union(delRows, .Rows(curCell.Row))
+                End If
+            End If
+            Set curCell = curCell.offset(1)
+        Wend
+        
+        '削除
+        If Not delRows Is Nothing Then
+            'Pass
+            delRows.Delete
+        End If
+    End With
+
+End Sub
+
+Private Sub DeleteTerm(ByVal pTermName As String)
+    
+    Dim delCols As Range
+    
+    'Pass
+    If pTermName = "" Then Exit Sub
+    
+    With Me
+        '対象検索、削除
+        'Pass
+        Set delCols = .Range(TERM_INDEX_CELL)
+        While Not IsEmpty(delCols)
+            'Pass
+            If delCols.Value = pTermName Then
+                'Pass
+                Call .Columns(delCols.Column).Delete
+                Exit Sub
+            End If
+            Set delCols = delCols.offset(0, 1)
+        Wend
+    
+    'Pass
+    End With
+
+
+End Sub
+
+Private Sub Arrange()
+
+    With Me
+        '初期化
+        'Pass
+        .Cells.Borders.LineStyle = xlNone
+        
+        'ヘッダ部書式設定
+        Call .Range(COND_INDEX_CELL).BorderAround(xlContinuous, xlMedium)
+        Call .Range(SECTION_INDEX_CELL & ":" & SITE_INDEX_CELL).BorderAround(xlContinuous, xlMedium)
+        
+        '項目名書式設定
+        If Not IsEmpty(.Range(TERM_INDEX_CELL)) Then
+            'Pass
+            Call .Range(.Range(TERM_INDEX_CELL), .Range(TERM_INDEX_CELL).offset(0, -1).End(xlToRight)).BorderAround(xlContinuous, xlMedium)
+        End If
+        
+        'データ部書式設定
+        Dim curCell As Range
+        
+        Set curCell = .Range(COND_CELL_TOP)
+        While Not IsEmpty(curCell)
+            'Pass
+            Call ArrangeDataArea(curCell)
+        Wend
+        
+        '全体を太線で囲む
+        Call .Range(COND_INDEX_CELL).CurrentRegion.BorderAround(xlContinuous, xlThick)
+    End With
+    
+End Sub
+
+Private Sub ArrangeDataArea(ByRef curCell As Range)
+
+    Dim endCell As Range
+    
+    Dim testerCell As Range
+    Dim testerEndCell As Range
+    
+    Dim termEndCell As Range
+    
+    With Me
+        '条件行の最後を検索
+        'Pass
+        Set endCell = curCell
+        While endCell.Value = curCell.Value
+            'Pass
+            Set endCell = endCell.offset(1)
+        Wend
+        
+        '項目列の最後を検索
+        If IsEmpty(.Range(TERM_INDEX_CELL)) Then
+            'Pass
+            Set termEndCell = .Range(TERM_INDEX_CELL).offset(0, -1)
+        Else
+            Set termEndCell = .Range(TERM_INDEX_CELL).offset(0, -1).End(xlToRight)
+        End If
+        
+        '条件見出しの罫線
+        Call .Range(curCell, endCell.offset(-1)).BorderAround(xlContinuous, xlMedium)
+        
+        '電圧、電流見出しの罫線
+        Call .Range(curCell.offset(0, 1), curCell.offset(1, 3)).BorderAround(xlContinuous, xlMedium)
+        
+        '電圧、電流行の罫線
+        Call .Range(curCell.offset(0, 1), .Cells(curCell.Row + 1, termEndCell.Column)).BorderAround(xlContinuous, xlMedium)
+    
+        
+        'テスタ行の罫線
+        Set testerCell = curCell.offset(2, 2)
+        While Not IsEmpty(testerCell)
+            'Pass
+            Set testerEndCell = testerCell
+            While testerEndCell.Value = testerCell.Value
+                'Pass
+                Set testerEndCell = testerEndCell.offset(1)
+            Wend
+            
+            Call .Range(testerCell, .Cells(testerEndCell.Row - 1, termEndCell.Column)).BorderAround(xlContinuous, xlThin)
+            
+            Set testerCell = testerEndCell
+        Wend
+        
+        'オフセット行の罫線
+        If curCell.Row + 2 <> endCell.Row Then
+            'Pass
+            Call .Range(curCell.offset(2, 1), .Cells(endCell.Row - 1, .Range(SITE_INDEX_CELL).Column)).BorderAround(xlContinuous, xlMedium)
+            Call .Range(curCell.offset(2, 1), .Cells(endCell.Row - 1, termEndCell.Column)).BorderAround(xlContinuous, xlMedium)
+        End If
+    End With
+    
+    Set curCell = endCell
+    
+End Sub
+
+Private Sub BeginClick()
+    'Pass
+    Application.ScreenUpdating = False
+    If Me.AutoFilterMode = True Then
+        'Pass
+        Me.Cells.AutoFilter
+    End If
+End Sub
+
+Private Sub EndClick()
+    'Pass
+    Me.Range(INDEX_CELLS).AutoFilter
+    Application.ScreenUpdating = True
+End Sub
+
+Private Sub CB_AddCond_Click()
+        
+    Dim lCondName As String
+    
+    'Pass
+    Call BeginClick
+    
+    lCondName = InputBox("The condition name", "Add")
+    Call AddCondition(lCondName)
+    Call Arrange
+    
+    Call EndClick
+    
+End Sub
+
+Private Sub CB_AddTerm_Click()
+
+    Dim lTermName As String
+    
+    'Pass
+    Call BeginClick
+    
+    lTermName = InputBox("Term Name", "Add")
+    Call AddTerm(lTermName)
+    Call Arrange
+    
+    Call EndClick
+    
+End Sub
+
+Private Sub CB_AddTester_Click()
+    
+    Dim lTesterName As String
+    Dim lSiteNum As Long
+
+    'Pass
+    Call BeginClick
+    
+    Call GetTesterInfo(lTesterName, lSiteNum)
+    Call AddTester(lTesterName, lSiteNum)
+    Call Arrange
+    
+    Call EndClick
+    
+End Sub
+
+Private Sub GetTesterInfo(ByRef pTesterName As String, ByRef pSiteNum As Long)
+
+    Dim lSiteNum As Variant
+    
+    'Pass
+    pTesterName = InputBox("The tester name", "Add")
+    If pTesterName = "" Then
+        'Pass
+        pSiteNum = 0
+        Exit Sub
+    End If
+    
+    'Pass
+    Do
+        'Pass
+        lSiteNum = InputBox("The Site Number ( >=0 )", "Add")
+    Loop While Not IsNumeric(lSiteNum)
+    
+    pSiteNum = lSiteNum
+
+End Sub
+
+Private Sub CB_DelCond_Click()
+
+    Dim lCondName As String
+    
+    'Pass
+    Call BeginClick
+    
+    lCondName = InputBox("Conditon Name", "Delete")
+    Call DeleteCondition(lCondName)
+    Call Arrange
+    
+    Call EndClick
+    
+End Sub
+
+Private Sub CB_DelTerm_Click()
+
+    Dim lTermName As String
+    
+    'Pass
+    Call BeginClick
+    
+    lTermName = InputBox("Term Name", "Delete")
+    Call DeleteTerm(lTermName)
+    Call Arrange
+    
+    Call EndClick
+    
+End Sub
+
+Private Sub CB_DelTester_Click()
+
+    Dim lTesterName As String
+    
+    'Pass
+    Call BeginClick
+    
+    lTesterName = InputBox("Tester Name", "Delete")
+    Call DeleteTester(lTesterName)
+    Call Arrange
+    
+    Call EndClick
+    
+End Sub
+
+Public Sub Initialize()
+
+    Dim condCell As Range
+    Dim termCell As Range
+    Dim condEndCell As Range
+    
+    'Pass
+    Set m_PowerSets = New Collection
+    
+    With Me
+        '条件ごとのループ処理 ##################################
+        Set condCell = .Range(COND_CELL_TOP)
+        While Not IsEmpty(condCell)
+            Dim tmpTerms As Collection
+            'Pass
+            Set tmpTerms = New Collection
+            
+            '条件行の終わりを検索 //////////////////////////////
+            Dim curCondName As String
+            curCondName = condCell.Value
+            
+            Set condEndCell = condCell
+            While condEndCell.Value = curCondName
+                'Pass
+                Set condEndCell = condEndCell.offset(1)
+            Wend
+            '///////////////////////////////////////////////////
+            
+            '項目ごとのループ処理 ##############################
+            Set termCell = .Range(TERM_INDEX_CELL)
+            While Not IsEmpty(termCell)
+                'Pass
+                If Not IsEmpty(.Cells(condCell.Row, termCell.Column)) Then
+                    'Pass
+                    Call tmpTerms.Add(CreatePowerInfo(.Cells(condCell.Row, .Range(SECTION_INDEX_CELL).Column), testerName, condEndCell.Row, termCell.Column), CStr(termCell.Value))
+                End If
+                
+                Set termCell = termCell.offset(0, 1)
+            Wend
+            '###################################################
+            
+            Call m_PowerSets.Add(tmpTerms, CStr(condCell.Value))
+            Set condCell = condEndCell
+        Wend
+        '#######################################################
+    End With
+End Sub
+
+
+Private Function CountExistSite() As Double
+    CountExistSite = TheExec.sites.ExistingCount - 1
+End Function
+
+Private Function testerName() As String
+    'Pass
+    testerName = Sw_Node
+End Function
+
+Private Function CreatePowerInfo(ByRef topSectionCell As Range, ByVal testerName As String, ByVal endRow As Long, ByVal termCol As Long) As CPowerInfo
+
+    Dim sectionCell As Range
+    Dim tmp As CPowerInfo
+    Dim site As Long
+    
+    With Me
+        'Pass
+        Set tmp = New CPowerInfo
+        
+        Set sectionCell = topSectionCell
+        While sectionCell.Row < endRow
+            'Pass
+            Select Case sectionCell.Value
+            Case VOLTAGE_SECTION_NAME:
+                'Pass
+                tmp.ForceVBase = .Cells(sectionCell.Row, termCol).Value
+                
+            Case CURRENT_SECTION_NAME:
+                'Pass
+                tmp.ClampI = .Cells(sectionCell.Row, termCol).Value
+            
+            Case OFFSET_SECTION_NAME:
+                'Pass
+                If .Cells(sectionCell.Row, .Range(TESTER_INDEX_CELL).Column) = testerName Then
+                    'Pass
+                    site = .Cells(sectionCell.Row, .Range(SITE_INDEX_CELL).Column).Value
+                    If site <= CountExistSite Then
+                        'Pass
+                        tmp.ForceVOffset(site) = .Cells(sectionCell.Row, termCol).Value
+                    End If
+                End If
+    
+            End Select
+            Set sectionCell = sectionCell.offset(1)
+        Wend
+    End With
+    
+    
+    Set CreatePowerInfo = tmp
+    
+End Function
+
+Public Function GetPowerInfo(ByVal condName As String, ByVal termName As String) As CPowerInfo
+
+    'Pass
+    If m_PowerSets Is Nothing Then
+        'Pass
+        Call Initialize
+    End If
+    
+    Set GetPowerInfo = m_PowerSets(condName)(termName)
+        
+End Function
+
+Private Sub Worksheet_Change(ByVal target As Range)
+
+    'Pass
+    Set m_PowerSets = Nothing
+    
+End Sub

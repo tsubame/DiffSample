@@ -1,0 +1,51 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet31"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+Dim sUnit As String
+Dim sUpperLimit As Double
+Dim sLowerLimit As Double
+
+Public Function CreateData(ByVal targetLabel As String) As Boolean
+
+    Const LABEL_COLUMN = 2
+    Const LIMIT_COLUMN = 14
+
+    Dim testCell As Range
+    Dim limitCell As Range
+
+    Set testCell = Me.Columns(LABEL_COLUMN).Find(targetLabel)
+    If testCell Is Nothing Then
+        Exit Function
+    End If
+
+    Set limitCell = Me.Cells(testCell.Row, LIMIT_COLUMN)
+    With limitCell
+        sLowerLimit = CDbl(.offset(0, 0).Value)
+        sUpperLimit = CDbl(.offset(0, 1).Value)
+        sUnit = .offset(0, 3).Value
+    End With
+
+    CreateData = True
+
+End Function
+
+Public Property Get Unit() As String
+    Unit = sUnit
+End Property
+
+Public Property Get UpperLimit() As Double
+    UpperLimit = sUpperLimit
+End Property
+
+Public Property Get LowerLimit() As Double
+    LowerLimit = sLowerLimit
+End Property
+

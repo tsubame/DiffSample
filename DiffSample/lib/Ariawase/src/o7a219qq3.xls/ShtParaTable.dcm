@@ -1,0 +1,625 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "ShtParaTable"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+Private Const TABLE_INDEX_CELL = "B6"
+Private Const TABLE_TOP = "B7"
+
+Private Const CONDITION_INDEX_CELL = "C6"
+Private Const CONDITION_TOP = "C7"
+
+Private Const INIT_TABLE_CELL = "B7:B8"
+Private Const INIT_LIMIT_CELL = "D6:G6"
+
+
+Private Const INDEX_CELLS = "B6:C6"
+
+Private Const LIMIT_COL = 250
+Private Const LIMIT_ROW = 60000
+
+Private m_DataSets As Collection
+
+Private Const LOLIMIT_INDEX_CELL = "D6"
+Private Const LOSIGN_INDEX_CELL = "E6"
+Private Const HISIGN_INDEX_CELL = "F6"
+Private Const HILIMIT_INDEX_CELL = "G6"
+Private Const VALUE_INDEX_CELL = "H6"
+Private Const REG_INDEX_CELL = "I6"
+
+'Collectionのデータキー
+Private Const LOLIMIT_KEY = "Lo Limit"
+Private Const LOSIGN_KEY = "Lo sign"
+Private Const HISIGN_KEY = "Hi sign"
+Private Const HILIMIT_KEY = "Hi Limit"
+Private Const VALUE_KEY = "Value"
+Private Const REG_KEY = "REG"
+
+Private Function isLimitCol() As Boolean
+
+    If Me.Range(TABLE_INDEX_CELL).End(xlToRight).Column > LIMIT_COL Then
+        isLimitCol = True
+    Else
+        isLimitCol = False
+    End If
+
+End Function
+
+Private Function isLimitRow() As Boolean
+
+    If IsEmpty(Me.Range(TABLE_TOP)) Then
+        isLimitRow = False
+    ElseIf Me.Range(TABLE_INDEX_CELL).End(xlDown).Row > LIMIT_ROW Then
+        isLimitRow = True
+    Else
+        isLimitRow = False
+    End If
+
+End Function
+
+Private Sub TableAdd_Click()
+
+    Dim ITableName As String
+
+    ITableName = InputBox("New Table Name", "Table Add")
+    Call AddTable(ITableName)
+    Call Arrange
+    
+    
+End Sub
+
+Private Sub AddTable(ByVal pTableName As String)
+
+    '===== 入力無しの場合終了 =============================================
+    If pTableName = "" Then Exit Sub
+
+    '===== 最大条件数の確認 ===============================================
+    If isLimitRow Then
+        Call MsgBox("Limit of Row(" & LIMIT_ROW & ")", vbExclamation)
+        Exit Sub
+    End If
+
+    'Pass
+    With Me
+        If IsEmpty(.Range(TABLE_TOP)) Then
+            '初期状態作成
+            'Pass
+            Call addInitTable(pTableName)
+        Else
+            '条件作成
+            'Pass
+            Call AddNextTable(pTableName)
+        End If
+    End With
+
+End Sub
+
+Private Sub addInitTable(ByVal pTableName As String)
+
+        Dim i As Integer
+
+        Me.Range(INIT_TABLE_CELL).Value = pTableName
+
+        With Me.Range(TABLE_TOP)
+            For i = 0 To 1
+                .offset(i, 1).Value = i
+                .offset(i, 3).Select
+                Call addValidation
+                .offset(i, 4).Select
+                Call addValidation
+             Next i
+        End With
+
+End Sub
+
+Private Sub addValidation()
+
+    With Selection.Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+        operator:=xlBetween, Formula1:="<,<="
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .ErrorTitle = "Warning"
+        .ErrorMessage = "Invalid data"
+        .ShowError = True
+    End With
+
+End Sub
+
+Private Sub AddNextTable(ByVal pTableName As String)
+
+
+    Dim topCell As Range
+    Dim curCell As Range
+    Dim endCell As Range
+    
+    'Pass
+    With Me
+        Set topCell = .Range(TABLE_TOP)
+        Set curCell = topCell
+    
+        '追加する条件名と同じ名前が出てきたら終了
+        While topCell.Value <> pTableName
+            '条件行の終わりを検索
+            'Pass
+            While topCell.Value = curCell.Value
+                'Pass
+                Set curCell = curCell.offset(1)
+            Wend
+            
+            '空白セルの時、新条件を追加
+            If IsEmpty(curCell) Then
+                '直前の条件をコピー
+                'Pass
+                Set endCell = curCell.offset(-1)
+                Call .Range(.Rows(topCell.Row), .Rows(topCell.Row + 1)).Copy(.Rows(curCell.Row))
+                
+                '条件名を新条件に変更
+                Set topCell = topCell.offset(curCell.Row - topCell.Row)
+                Set endCell = topCell.offset(curCell.Row - topCell.Row + 1)
+                .Range(topCell, endCell).Value = pTableName
+                
+                '終了
+                Exit Sub
+            End If
+            
+            'Pass
+            Set topCell = curCell
+        Wend
+    End With
+
+
+End Sub
+
+Private Sub TableDelete_Click()
+
+    Dim lCondName As String
+    
+    'Pass
+    Call BeginClick
+    
+    lCondName = InputBox("Table Name", "Table Delete")
+    Call DeleteCondition(lCondName)
+    Call Arrange
+    
+    Call EndClick
+
+End Sub
+
+Private Sub DeleteCondition(ByVal pCondName As String)
+    
+    Dim delRows As Range
+    Dim curCell As Range
+    'Pass
+    If pCondName = "" Then Exit Sub
+    
+    'Pass
+    With Me
+        '削除対象検索、結合
+        Set curCell = .Range(TABLE_TOP)
+        While Not IsEmpty(curCell)
+            'Pass
+            If curCell.Value = pCondName Then
+                'Pass
+                If delRows Is Nothing Then
+                    'Pass
+                    Set delRows = .Rows(curCell.Row)
+                Else
+                    'Pass
+                    Set delRows = Union(delRows, .Rows(curCell.Row))
+                End If
+            End If
+            Set curCell = curCell.offset(1)
+        Wend
+        
+        '削除
+        'Pass
+        If Not delRows Is Nothing Then
+            'Pass
+            delRows.Delete
+        End If
+    End With
+
+End Sub
+
+Private Sub ConditionAdd_Click()
+
+    Dim lCondName As String
+    Dim lAddCnt As Integer
+    'Pass
+    lCondName = InputBox("Table Name", "Add Condition")
+    lAddCnt = InputBox("Add Count", "Add Condition Count")
+    If lAddCnt > 0 Then
+        Call AddCondition(lCondName, lAddCnt)
+    End If
+    Call Arrange
+
+End Sub
+
+Private Sub AddCondition(ByVal pTableName As String, ByVal addcnt As Integer)
+
+    Dim curCell As Range
+    Dim endCell As Range
+    Dim ii As Integer
+    Dim CondIndex As Integer
+    'Pass
+    With Me
+        
+        Set curCell = .Range(TABLE_TOP)
+        While Not IsEmpty(curCell)
+            'Pass
+             Set endCell = curCell
+            While endCell.Value = curCell.Value
+            'Pass
+                Set endCell = endCell.offset(1)
+            Wend
+
+            If curCell = pTableName And endCell <> pTableName Then
+                For ii = 1 To addcnt
+                    CondIndex = endCell.offset(-1, 1).Value
+                    .Rows(endCell.Row - 1).Copy
+                    .Rows(endCell.Row).Insert
+                    endCell.offset(-1, 1).Value = CondIndex + 1
+                Next ii
+                Exit Sub
+            End If
+            
+            Set curCell = endCell
+        Wend
+    End With
+
+End Sub
+
+Private Sub ConditionDelete_Click()
+
+    Dim lCondName As String
+    Dim lAddCnt As Integer
+    'Pass
+    lCondName = InputBox("Table Name", "Delete Condition")
+    lAddCnt = InputBox("Add Count", "Delte Condition Count")
+    If lAddCnt > 0 Then
+        Call DelCondition(lCondName, lAddCnt)
+    End If
+    Call Arrange
+
+End Sub
+
+Private Sub DelCondition(ByVal pTableName As String, ByVal addcnt As Integer)
+
+    Dim curCell As Range
+    Dim endCell As Range
+    Dim ii As Integer
+    Dim CondIndex As Integer
+    'Pass
+    With Me
+        
+        Set curCell = .Range(TABLE_TOP)
+        While Not IsEmpty(curCell)
+            'Pass
+             Set endCell = curCell
+            While endCell.Value = curCell.Value
+            'Pass
+                Set endCell = endCell.offset(1)
+            Wend
+
+            If curCell = pTableName And endCell <> pTableName Then
+                For ii = 1 To addcnt
+                    .Rows(endCell.Row - 1).Delete
+                Next ii
+                Exit Sub
+            End If
+            
+            Set curCell = endCell
+        Wend
+    End With
+
+End Sub
+
+Private Sub BeginClick()
+    'Pass
+    Application.ScreenUpdating = False
+    If Me.AutoFilterMode = True Then
+        'Pass
+        Me.Cells.AutoFilter
+    End If
+End Sub
+
+Private Sub EndClick()
+    'Pass
+    Me.Range(INDEX_CELLS).AutoFilter
+    Application.ScreenUpdating = True
+End Sub
+
+Private Sub Arrange()
+
+    'Pass
+    With Me
+        '初期化
+        .Cells.Borders.LineStyle = xlNone
+        
+        'ヘッダ部書式設定
+        Call .Range(TABLE_INDEX_CELL).BorderAround(xlContinuous, xlMedium)
+        Call .Range(CONDITION_INDEX_CELL).BorderAround(xlContinuous, xlMedium)
+        Call .Range(INIT_LIMIT_CELL).BorderAround(xlContinuous, xlMedium)
+        Call .Range(CONDITION_INDEX_CELL).offset(0, 5).BorderAround(xlContinuous, xlMedium)
+        Call .Range(CONDITION_INDEX_CELL).offset(0, 6).BorderAround(xlContinuous, xlMedium)
+        Call .Range(CONDITION_INDEX_CELL).offset(0, 7).BorderAround(xlContinuous, xlMedium)
+                    
+        With .Range(INIT_LIMIT_CELL).Borders(xlInsideVertical)
+            .LineStyle = xlContinuous
+            .Weight = xlThin
+        End With
+        
+        'データ部書式設定
+        Dim curCell As Range
+
+        Set curCell = .Range(TABLE_TOP)
+        While Not IsEmpty(curCell)
+            'Pass
+            Call ArrangeDataArea(curCell)
+        Wend
+
+        '全体を太線で囲む
+        Call .Range(TABLE_INDEX_CELL).CurrentRegion.BorderAround(xlContinuous, xlThick)
+    End With
+    
+End Sub
+
+Private Sub ArrangeDataArea(ByRef curCell As Range)
+
+    Dim endCell As Range
+    
+    Dim testerCell As Range
+    Dim testerEndCell As Range
+    
+    Dim termEndCell As Range
+    Dim tmpTop As Range
+    Dim tmpEnd As Range
+    
+    'Pass
+    With Me
+        '条件行の最後を検索
+        Set endCell = curCell
+        While endCell.Value = curCell.Value
+            'Pass
+            Set endCell = endCell.offset(1)
+        Wend
+        
+        '条件見出しの罫線
+        Call .Range(curCell, endCell.offset(-1)).BorderAround(xlContinuous, xlMedium)
+        Call .Range(curCell.offset(0, 1), endCell.offset(-1, 1)).BorderAround(xlContinuous, xlMedium)
+        Call .Range(curCell.offset(0, 2), endCell.offset(-1, 5)).BorderAround(xlContinuous, xlMedium)
+        Call .Range(curCell.offset(0, 6), endCell.offset(-1, 6)).BorderAround(xlContinuous, xlMedium)
+        Call .Range(curCell.offset(0, 7), endCell.offset(-1, 7)).BorderAround(xlContinuous, xlMedium)
+        Call .Range(curCell.offset(0, 8), endCell.offset(-1, 8)).BorderAround(xlContinuous, xlMedium)
+
+        With .Range(curCell.offset(0, 2), endCell.offset(-1, 5)).Borders(xlInsideVertical)
+            .LineStyle = xlContinuous
+            .Weight = xlThin
+        End With
+    End With
+    
+    Set curCell = endCell
+    
+End Sub
+
+Public Sub Initialize()
+
+    Dim tblCell As Range
+    Dim tblEndCell As Range
+    
+    Set m_DataSets = New Collection
+    
+    With Me
+        '条件ごとのループ処理 ##################################
+        Set tblCell = .Range(TABLE_TOP)
+        While Not IsEmpty(tblCell)
+            
+            '条件行の終わりを検索 //////////////////////////////
+            Dim curTblName As String
+            curTblName = tblCell.Value
+            
+            Set tblEndCell = tblCell
+            While tblEndCell.Value = curTblName
+                Set tblEndCell = tblEndCell.offset(1)
+            Wend
+            '///////////////////////////////////////////////////
+            
+            '条件行のデータをコレクションに追加 ////////////////
+            Call m_DataSets.Add(CreateDataInfo(tblCell.Row, tblEndCell.Row), CStr(tblCell.Value))
+            '///////////////////////////////////////////////////
+            
+            Set tblCell = tblEndCell
+        Wend
+        '#######################################################
+    End With
+    
+End Sub
+
+Private Function CreateDataInfo(startRow, endRow)
+    
+    Dim tmp As Collection
+    Dim curRow As Integer
+    
+    With Me
+        Set tmp = New Collection
+        
+        For curRow = startRow To endRow - 1
+            Dim curRowData As Collection
+            Set curRowData = New Collection
+            
+            Call curRowData.Add(.Cells(curRow, .Range(LOLIMIT_INDEX_CELL).Column), LOLIMIT_KEY)
+            Call curRowData.Add(.Cells(curRow, .Range(LOSIGN_INDEX_CELL).Column), LOSIGN_KEY)
+            Call curRowData.Add(.Cells(curRow, .Range(HISIGN_INDEX_CELL).Column), HISIGN_KEY)
+            Call curRowData.Add(.Cells(curRow, .Range(HILIMIT_INDEX_CELL).Column), HILIMIT_KEY)
+            Call curRowData.Add(.Cells(curRow, .Range(VALUE_INDEX_CELL).Column), VALUE_KEY)
+            Call curRowData.Add(.Cells(curRow, .Range(REG_INDEX_CELL).Column), REG_KEY)
+            
+            Call tmp.Add(curRowData)
+        Next
+    End With
+    
+    Set CreateDataInfo = tmp
+    
+End Function
+
+Public Function GetREG(ByVal tblName As String, ByVal Value As Double)
+
+    Const LT_SIGN = "<"
+    Const LE_SIGN = "<="
+    
+    Dim obj As Object
+    
+    If m_DataSets Is Nothing Then
+        Call Initialize
+    End If
+    
+    For Each obj In m_DataSets(tblName)
+        If Not obj(LOLIMIT_KEY) = "" And Not obj(HILIMIT_KEY) = "" Then
+            Select Case obj(LOSIGN_KEY) & obj(HISIGN_KEY)
+            Case LT_SIGN & LT_SIGN
+                If obj(LOLIMIT_KEY) < Value And Value < obj(HILIMIT_KEY) Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+                
+            Case LT_SIGN & LE_SIGN
+                If obj(LOLIMIT_KEY) < Value And Value <= obj(HILIMIT_KEY) Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+                
+            Case LE_SIGN & LT_SIGN
+                If obj(LOLIMIT_KEY) <= Value And Value < obj(HILIMIT_KEY) Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+                
+            Case LE_SIGN & LE_SIGN
+                If obj(LOLIMIT_KEY) <= Value And Value <= obj(HILIMIT_KEY) Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+                
+            End Select
+            
+        ElseIf obj(LOLIMIT_KEY) = "" Then
+            Select Case obj(HISIGN_KEY)
+            Case LT_SIGN
+                If Value < obj(HILIMIT_KEY) Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+                
+            Case LE_SIGN
+                If Value <= obj(HILIMIT_KEY) Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+            End Select
+            
+        ElseIf obj(HILIMIT_KEY) = "" Then
+            Select Case obj(LOSIGN_KEY)
+            Case LT_SIGN
+                If obj(LOLIMIT_KEY) < Value Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+            Case LE_SIGN
+                If obj(LOLIMIT_KEY) <= Value Then
+                    GetREG = CLng("&H" & obj(REG_KEY))
+                    Exit Function
+                End If
+            End Select
+            
+        End If
+    Next
+    
+End Function
+
+Public Function GetValue(ByVal tblName As String, ByVal Value As Double)
+
+    Const LT_SIGN = "<"
+    Const LE_SIGN = "<="
+    
+    Dim obj As Object
+    
+    If m_DataSets Is Nothing Then
+        Call Initialize
+    End If
+    
+    For Each obj In m_DataSets(tblName)
+        If Not obj(LOLIMIT_KEY) = "" And Not obj(HILIMIT_KEY) = "" Then
+            Select Case obj(LOSIGN_KEY) & obj(HISIGN_KEY)
+            Case LT_SIGN & LT_SIGN
+                If obj(LOLIMIT_KEY) < Value And Value < obj(HILIMIT_KEY) Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+                
+            Case LT_SIGN & LE_SIGN
+                If obj(LOLIMIT_KEY) < Value And Value <= obj(HILIMIT_KEY) Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+                
+            Case LE_SIGN & LT_SIGN
+                If obj(LOLIMIT_KEY) <= Value And Value < obj(HILIMIT_KEY) Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+                
+            Case LE_SIGN & LE_SIGN
+                If obj(LOLIMIT_KEY) <= Value And Value <= obj(HILIMIT_KEY) Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+                
+            End Select
+            
+        ElseIf obj(LOLIMIT_KEY) = "" Then
+            Select Case obj(HISIGN_KEY)
+            Case LT_SIGN
+                If Value < obj(HILIMIT_KEY) Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+                
+            Case LE_SIGN
+                If Value <= obj(HILIMIT_KEY) Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+            End Select
+            
+        ElseIf obj(HILIMIT_KEY) = "" Then
+            Select Case obj(LOSIGN_KEY)
+            Case LT_SIGN
+                If obj(LOLIMIT_KEY) < Value Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+            Case LE_SIGN
+                If obj(LOLIMIT_KEY) <= Value Then
+                    GetValue = obj(VALUE_KEY)
+                    Exit Function
+                End If
+            End Select
+            
+        End If
+    Next
+    
+End Function
+
+Private Sub Worksheet_Change(ByVal target As Range)
+
+    Set m_DataSets = Nothing
+    
+End Sub

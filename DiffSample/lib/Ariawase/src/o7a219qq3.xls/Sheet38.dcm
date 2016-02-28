@@ -1,0 +1,99 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet38"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+
+
+Private Sub ParamCheck_button_Click()
+    Dim ColorPoint As Variant
+    Dim FnumberPoint As Variant
+    Dim IdenPoint As Variant
+    Dim intCheckRow As Integer
+
+    Dim intNodeCnt As Integer
+    Dim intNodeloop As Integer
+    Dim intNodeNo(100) As Integer
+
+    blnAutoAxisSet = True
+    intNodeCnt = 0
+
+On Error GoTo errcheck
+    Set IdenPoint = Range("A5:X6").Find("Identifier")
+    If IdenPoint Is Nothing Then
+        GoTo errcheck
+    End If
+    
+    Set ColorPoint = Range("A6:X6").Find("Color")
+    If ColorPoint Is Nothing Then
+        GoTo errcheck
+    End If
+
+    Set FnumberPoint = Range("A6:X6").Find("OptMod.FNumberTurret")
+    If FnumberPoint Is Nothing Then
+        GoTo errcheck
+    End If
+
+'C列ループ　Dountil空になるまで
+    intCheckRow = IdenPoint.Row + 2
+    Do While Not Cells(intCheckRow, IdenPoint.Column) = vbNullString
+        If intNodeCnt = 0 Then
+            intNodeNo(intNodeCnt) = Cells(intCheckRow, 2)
+            intNodeCnt = intNodeCnt + 1
+        Else
+            If intNodeNo(intNodeCnt - 1) <> Cells(intCheckRow, 2) Then
+                intNodeNo(intNodeCnt) = Cells(intCheckRow, 2)
+                intNodeCnt = intNodeCnt + 1
+            End If
+        End If
+        
+        '先頭チェック　F/P
+        If (Left(Cells(intCheckRow, IdenPoint.Column).Value, 1)) = "P" Then
+            Cells(intCheckRow, FnumberPoint.Column).Value = "PIN"
+        ElseIf (Left(Cells(intCheckRow, IdenPoint.Column).Value, 1)) = "F" Then
+            Cells(intCheckRow, FnumberPoint.Column).Value = "F_UNIT"
+        Else
+            Cells(intCheckRow, FnumberPoint.Column).Value = "THROUGH"
+        End If
+        
+        '末尾チェック　_COLOR
+        If (Right(Cells(intCheckRow, IdenPoint.Column).Value, 4)) = "_RED" Then
+            Cells(intCheckRow, ColorPoint.Column).Value = "RED"
+        ElseIf (Right(Cells(intCheckRow, IdenPoint.Column).Value, 6)) = "_GREEN" Then
+            Cells(intCheckRow, ColorPoint.Column).Value = "GREEN"
+        ElseIf (Right(Cells(intCheckRow, IdenPoint.Column).Value, 5)) = "_BLUE" Then
+            Cells(intCheckRow, ColorPoint.Column).Value = "BLUE"
+        ElseIf (Right(Cells(intCheckRow, IdenPoint.Column).Value, 3)) = "_LB" Then
+            Cells(intCheckRow, ColorPoint.Column).Value = "LB"
+        ElseIf (Right(Cells(intCheckRow, IdenPoint.Column).Value, 3)) = "_FL" Then
+            Cells(intCheckRow, ColorPoint.Column).Value = "FL"
+        Else
+            Cells(intCheckRow, ColorPoint.Column).Value = "WHITE"
+        End If
+        
+        'C列ループ
+        intCheckRow = intCheckRow + 1
+    Loop
+    
+    'コンディションチェック
+    For intNodeloop = 0 To intNodeCnt - 1
+        Sw_Node = intNodeNo(intNodeloop)
+        Set OptCond = Nothing
+        Set OptCond = New csPALS_OptCond
+    Next
+
+    blnAutoAxisSet = False
+Exit Sub
+
+
+errcheck:
+    MsgBox "Error,ParamCheck"
+
+End Sub
+

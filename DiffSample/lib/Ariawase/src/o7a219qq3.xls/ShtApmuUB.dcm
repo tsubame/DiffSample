@@ -1,0 +1,254 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "ShtApmuUB"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+'概要:
+'   APMUのUtilityBit設定データワークシート
+'
+'目的:
+'   条件表に条件名と値を定義する
+'   Utility Bitのチャンネルに対応する名前を定義する
+'
+'注意事項:
+'   APMUのUtility Bit設定クラスとあわせて使用します
+'   UB_CH#、Assign Name、Condition Nameは重複定義していると
+'   ロード時にエラーとなります。
+'   Bitの値は、0もしくは1のみ指定してください。
+'
+'作成者:
+'   SLSI今手
+'
+'Code Checked
+'
+
+Option Explicit
+
+'APMU Utility Bitワークシート表の名前定義
+Private Const INDEX_CELL_TOP = "G3" '"INDEX_CELL_TOP"
+Private Const UB_CH_CELL_TOP = "B5" '"UB_CH_CELL_TOP"
+Private Const ASSIGN_NAME_CELL_TOP = "C5" '"ASSIGN_NAME_CELL_TOP"
+Private Const APMU_BOARD_NUMBER = "C2" '"APMU_BOARD_NUMBER"
+
+'プロパティでの表のデータを公開用
+Private m_UBConditions As Collection  '条件名をキーにUBCHと設定値の配列を格納するコレクション
+Private m_UBChanMap As Collection     'アサイン名をキーに対応するUBCHを格納するコレクション
+Private m_ApmuBoardNum As Long        'APMUのボード番号格納用
+
+'#Pass-Ok
+Public Property Get UBCondition() As Collection
+'内容:
+'   UtilityBit設定条件データコレクション
+'
+'パラメータ:
+'
+'戻り値:
+'   UB_CH#と設定値の情報コレクション
+'
+'注意事項:
+'   Read Onlyです
+'   条件名称をキーに、UB_CH#と設定値が格納されているデータです。
+'
+
+    Set UBCondition = m_UBConditions
+
+End Property
+
+'#Pass-Ok
+Public Property Get UBChanMap() As Collection
+'内容:
+'   UtilityBit CH番号アサイン データコレクション
+'
+'パラメータ:
+'
+'戻り値:
+'   アサイン名称とUB_CH#の情報コレクション
+'
+'注意事項:
+'   Read Onlyです
+'   アサイン名称をキーに、対応UB_CH#が格納されているデータです。
+'
+    
+    Set UBChanMap = m_UBChanMap
+
+End Property
+
+'#Pass-Ok
+Public Property Get ApmuBoardNum() As Long
+'内容:
+'   APMUボード番号
+'
+'パラメータ:
+'
+'戻り値:
+'   APMUのボード番号
+'
+'注意事項:
+'   Read Onlyです
+'   表に入力されているAPMUのボード番号です。
+'
+    
+    ApmuBoardNum = m_ApmuBoardNum
+
+End Property
+
+'#Pass-Ok
+Public Sub Initialize()
+'内容:
+'   APMU Utility Bit条件表を初期化（使用可能状態に）します
+'
+'パラメータ:
+'
+'戻り値:
+'
+'注意事項:
+'   表に入力されているデータを読み込んで
+'   プロパティにて公開される表のデータとワークシートの入力値が
+'   同じ状態になるようにします｡
+'
+    
+    Call mf_LoadUBCondition
+
+End Sub
+
+'#Pass-Ok
+Private Sub mf_LoadUBCondition()
+'内容:
+'   ワークシートのデータを読み込みます。
+'
+    Dim indexCell As Range
+    Dim utyBitCell As Range
+    Dim assignNameCell As Range
+    Dim dataCell As Range
+    Dim tmpUBData(1) As Long    '0:UB_CH番号、1:設定値 の格納用
+    Dim tmpUBSet As Collection
+    Dim errChkUBch As Collection
+
+    Set m_UBConditions = New Collection 'UB条件定義用コレクション
+    Set m_UBChanMap = New Collection    'UB_CH定義用コレクション
+    Set errChkUBch = New Collection     'UB_CHの重複チェック用コレクション
+
+
+    'APMUボード番号の読み込み
+    m_ApmuBoardNum = Me.Range(APMU_BOARD_NUMBER).Value
+    
+    
+    'アサイン名と対応するUBCH番号の読み込み(UB_CH定義データ作成)
+    With Me
+        Set utyBitCell = .Range(UB_CH_CELL_TOP)
+        Set assignNameCell = .Range(ASSIGN_NAME_CELL_TOP)
+    
+        While Not IsEmpty(utyBitCell)
+            'UB_CHの重複登録用のUB_CHをキーとしたコレクションへの擬似登録（登録データは未使用）
+            'コレクションのキー重複登録エラーをUB_CHの重複チェックに使用している
+            On Error GoTo UBCH_ERR
+            Call errChkUBch.Add(assignNameCell.Value, CStr(utyBitCell.Value))
+            On Error GoTo 0
+
+            If Not IsEmpty(assignNameCell) Then
+                'アサイン名の重複を確認しながら登録
+                On Error GoTo UBCH_READ_ERR
+                Call m_UBChanMap.Add(utyBitCell.Value, CStr(assignNameCell.Value))
+                On Error GoTo 0
+            End If
+            Set utyBitCell = utyBitCell.offset(1)
+            Set assignNameCell = assignNameCell.offset(1)
+        Wend
+    
+    End With
+
+
+    '条件名と設定値の読み込み（UB条件定義データの作成）
+    With Me
+        Set indexCell = .Range(INDEX_CELL_TOP)
+        While Not IsEmpty(indexCell)
+            Set utyBitCell = .Range(UB_CH_CELL_TOP)
+            Set dataCell = .Cells(utyBitCell.Row, indexCell.Column)
+
+            '条件ごとのリレー情報取得
+            Set tmpUBSet = New Collection
+            While Not IsEmpty(utyBitCell)
+                
+                If Not IsEmpty(dataCell) Then
+                    tmpUBData(0) = utyBitCell.Value 'UB_CH#
+                    tmpUBData(1) = dataCell.Value   '設定値
+                    '設定値が0もしくは1であることを確認それ以外の値の場合はエラー
+                    If tmpUBData(1) = 0 Or tmpUBData(1) = 1 Then
+                        Call tmpUBSet.Add(tmpUBData)    '条件名をキーに登録
+                    Else
+                        Call OutputErrMsg(Me.Name & " worksheet " & (indexCell.Value) & " condition " & "CH=" & tmpUBData(0) & _
+                        " Value=" & tmpUBData(1) & vbCrLf & "    Value must be 0 or 1")
+                        Exit Sub
+                    End If
+                End If
+
+                Set utyBitCell = utyBitCell.offset(1)
+                Set dataCell = dataCell.offset(1)
+            Wend
+            
+            On Error GoTo CONDITION_READ_ERR
+            Call m_UBConditions.Add(tmpUBSet, indexCell.Value)
+            On Error GoTo 0
+            
+            Set indexCell = indexCell.offset(0, 1)
+        Wend
+    
+    End With
+
+    Exit Sub
+    
+'Assign Nameの登録エラー
+UBCH_READ_ERR:
+    Call OutputExistsErr(Me.Name & " worksheet " & "Assign name read error", "    The name of " & CStr(assignNameCell.Value))
+    Exit Sub
+    
+'Condition Nameの登録エラー
+CONDITION_READ_ERR:
+    Call OutputExistsErr(Me.Name & " worksheet " & "Condition name read error", "    The name of " & CStr(indexCell.Value))
+    Exit Sub
+        
+'UB_CHの重複登録エラー
+UBCH_ERR:
+    Call OutputExistsErr(Me.Name & " worksheet " & "UB_CH# read error", "    UB_CH# = " & CStr(utyBitCell.Value))
+    Exit Sub
+                
+End Sub
+
+'#Pass-Ok
+Private Sub OutputExistsErr(ByVal errMsg As String, ByVal ErrValue As String)
+'内容
+'   条件表の値の重複エラー出力処理用
+
+    Call OutputErrMsg(errMsg & vbCrLf & ErrValue & " overlaps ?")
+    Set m_UBConditions = Nothing
+    Set m_UBChanMap = Nothing
+    m_ApmuBoardNum = -1
+
+End Sub
+
+'#Pass-Ok
+Private Sub Worksheet_Change(ByVal target As Range)
+'内容:
+'   条件表ワークシートの変更イベント取得
+'   シートが変更されたときは、プロパティで公開している
+'   表データとの整合性を保つため現在のデータを破棄します。
+'
+'注意:
+'   ブレークポイントで中断中などのワークシートイベントが
+'   取得できない状態にて､シートが変更された場合は
+'   変更が行われたことを取得できないため、
+'   手動でデータの再ロードを行う必要があります｡
+'   Utility Bit設定用クラスのLoadCondition命令
+'   を実行してください。
+
+'    MsgBox "APMU UBの条件シートが変更されました"
+    Set m_UBConditions = Nothing
+    Set m_UBChanMap = Nothing
+    m_ApmuBoardNum = -1
+    
+End Sub
+

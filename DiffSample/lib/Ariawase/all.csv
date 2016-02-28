@@ -1,0 +1,18 @@
+IP750 TEST PROGRAM,,,,,
+ DIGITAL OUT  S_SATSU Test Program for Color Filter Device.,,,,,
+Program Name : o7a219qq3.xls,,,,,
+EEE-JOB Ver:2.2,,MasterBookV221 Ver : 022,,,
+Version,JOB NAME,Date,Author,,Comment
+1,o7a219qq1,9/11/2014,H.Fukumoto,,Eee-Auto MP1
+1.1,o7a219qq1,2/27/2015,E.Toyomura,,Add TX24
+1.2,o7a219qq1,3/6/2015,E.Toyomura,,"Add TX62,88,98"
+1.3,o7a219qq1,3/13/2015,S.Sakai,,"Add TX128,138,139"
+1.31,o7a219qq1,4/27/2015,H.Kamizuru,,"Add ""Application.CutCopyMode = False"" (for PMC LOTEND ERROR)"
+2,o7a219qq2,5/15/2015,M.Imamura,,DesignChange   SCR_VDD5V Wait 0.5sec -> 0.1sec
+3,o7a219qq3,7/9/2015,H.Fukumoto,,DesignChange   SCR_VDD5V 0.1sec -> SCR_VDD4.5V 0.5sec
+3.1,o7a219qq3,10/1/2015,H.Fukumoto,,Optimisation of Lot Number Processing
+,,,,,
+Version,JOB NAME,Date,Author,,Comment
+1,o7e219qq1,2/14/2014,Y.Koga,,Eee-Auto
+2,o7e219qq2,5/2/2014,Y.Koga,,Eee-Auto
+3,o7e219qq3,9/11/2014,H.Fukumoto,,Eee-Auto
